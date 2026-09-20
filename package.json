@@ -1,0 +1,13 @@
+{
+  "name": "key-server",
+  "version": "1.0.0",
+  "description": "Key validation server for Auto-Interact",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "redis": "^4.6.7"
+  }
+}
