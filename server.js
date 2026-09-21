@@ -1,11 +1,24 @@
 const express = require('express');
 const redis = require('redis');
 const fs = require('fs');
+const path = require('path');
 
 const app = express();
 app.use(express.json());
 
+// Serve static files (loader.lua etc.) but NOT private/
+express.static.mime.define({ 'text/plain': ['lua'] });
+app.use(express.static(path.join(__dirname), {
+    // block /private and dotfiles from being served
+    setHeaders: (res, filePath) => {
+        if (filePath.includes(`${path.sep}private${path.sep}`)) {
+            res.status(403).end();
+        }
+    }
+}));
+
 const PORT = process.env.PORT || 3000;
+const MASTER_KEY = process.env.MASTER_KEY || 'SWIFT';
 
 const redisClient = redis.createClient({
     url: process.env.REDIS_URL
@@ -35,6 +48,11 @@ app.post('/validate', async (req, res) => {
     }
     if (!hwid || typeof hwid !== 'string') {
         return res.json({ valid: false, error: 'No HWID provided' });
+    }
+
+    // Master key bypasses all checks
+    if (key === MASTER_KEY) {
+        return res.json({ valid: true, message: 'Master key accepted' });
     }
 
     try {
@@ -82,23 +100,28 @@ app.post('/getscript', async (req, res) => {
     }
 
     try {
-        const exists = await redisClient.sIsMember('valid_keys', key);
-        if (!exists) {
-            return res.json({ error: 'Invalid key' });
+        // Master key bypasses Redis entirely
+        if (key !== MASTER_KEY) {
+            const exists = await redisClient.sIsMember('valid_keys', key);
+            if (!exists) {
+                return res.json({ error: 'Invalid key' });
+            }
+
+            const boundHwid = await redisClient.hGet('key_bindings', key);
+            if (boundHwid && boundHwid !== hwid) {
+                return res.json({ error: 'Key bound to another PC' });
+            }
+            if (!boundHwid) {
+                await redisClient.hSet('key_bindings', key, hwid);
+            }
+            await redisClient.hSet('key_last_used', key, Date.now().toString());
+            await redisClient.hIncrBy('key_usage', key, 1);
         }
 
-        const boundHwid = await redisClient.hGet('key_bindings', key);
-        if (boundHwid && boundHwid !== hwid) {
-            return res.json({ error: 'Key bound to another PC' });
-        }
-        if (!boundHwid) {
-            await redisClient.hSet('key_bindings', key, hwid);
-        }
-
-        // Read the script from file
+        // Read the script from private/ (NOT served publicly)
         let script;
         try {
-            script = fs.readFileSync('./script.lua', 'utf8');
+            script = fs.readFileSync(path.join(__dirname, 'private', 'script.lua'), 'utf8');
         } catch (err) {
             console.error('Script file missing:', err);
             return res.json({ error: 'Script not available' });
