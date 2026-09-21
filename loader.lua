@@ -1,4 +1,4 @@
-local KEY  = (getgenv and getgenv().AdminKey) or "SWIFT"
+local KEY  = (getgenv and getgenv().AdminKey) or ""
 local H    = game:GetService("HttpService")
 local hwid = game:GetService("RbxAnalyticsService"):GetClientId()
 
