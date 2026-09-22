@@ -1,13 +1,3 @@
--- ============================================================
--- Auto-Interact: Public + HWID + Auto-Conquer + Adaptive Conquer Best
--- ============================================================
-
--- ===== GAME ID LOCK =====
-local ALLOWED_PLACE_ID = 113987393426315
-if game.PlaceId ~= ALLOWED_PLACE_ID then
-    warn("[AutoInteract] ❌ Wrong game! PlaceId " .. ALLOWED_PLACE_ID .. " required.")
-    return
-end
 
 -- ===== SERVICES =====
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
